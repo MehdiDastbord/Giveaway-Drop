@@ -231,8 +231,8 @@ async function handleEntry(interaction, eventId, action = 'join') {
     content: 'این رویداد در دیتابیس فعلی پیدا نشد. اگر بات پس از ساخت رویداد ری‌استارت یا دیپلوی شده، DATABASE_PATH را به فایل دیتابیس پایدار قبلی تنظیم کن؛ در غیر این صورت رویداد را دوباره بساز.',
     ephemeral: true
   });
-  if (ev.guild_id !== interaction.guildId || ev.channel_id !== interaction.channelId ||
-      (interaction.isButton() && interaction.message.id !== ev.message_id)) {
+    if (ev.guild_id !== interaction.guildId || ev.channel_id !== interaction.channelId ||
+      (interaction.isButton() && action === 'join' && interaction.message.id !== ev.message_id)) {
     return interaction.reply({ content: 'این دکمه متعلق به همین پیام و کانال نیست.', ephemeral: true });
   }
   if (ev.status !== 'active' || (ev.kind === 'giveaway' && Date.now() >= ev.ends_at)) {
