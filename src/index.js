@@ -62,7 +62,7 @@ const q = {
     VALUES (@message_id,@guild_id,@channel_id,@host_id,@kind,@prize,@condition_text,@entry_text,@sponsor_url,@mode,@winner_count,@ends_at,@status,@created_at)`),
   getEvent: db.prepare('SELECT * FROM events WHERE message_id=?'),
   active: db.prepare("SELECT * FROM events WHERE status='active'"),
-  endEvent: db.prepare("UPDATE events SET status='ended', winners_json=? WHERE message_id=?"),
+  endEvent: db.prepare("UPDATE events SET status='ended', winners_json=? WHERE message_id=? AND status='active'"),
   entryCount: db.prepare('SELECT COUNT(*) AS n FROM entries WHERE message_id=?'),
   hasEntry: db.prepare('SELECT 1 FROM entries WHERE message_id=? AND user_id=?'),
   addEntry: db.prepare('INSERT OR IGNORE INTO entries(message_id,user_id,entered_at) VALUES(?,?,?)'),
@@ -166,12 +166,14 @@ async function finishGiveaway(ev) {
   q.endEvent.run(JSON.stringify(winners), ev.message_id);
   await announceEnd(current, winners);
 }
-async function finishDrop(ev) {
+function finishDropIfFull(ev) {
   const current = q.getEvent.get(ev.message_id);
-  if (!current || current.status !== 'active') return;
-  const winners = q.entrants.all(ev.message_id).slice(0, current.winner_count).map(x => x.user_id);
-  q.endEvent.run(JSON.stringify(winners), ev.message_id);
-  await announceEnd(current, winners);
+  if (!current || current.status !== 'active') return null;
+  const entrants = q.entrants.all(ev.message_id);
+  if (entrants.length < current.winner_count) return null;
+  const winners = entrants.slice(0, current.winner_count).map(x => x.user_id);
+  const result = q.endEvent.run(JSON.stringify(winners), ev.message_id);
+  return result.changes ? { event: current, winners } : null;
 }
 async function endDueEvents() {
   const now = Date.now();
@@ -257,17 +259,10 @@ async function handleEntry(interaction, eventId, action = 'join') {
     });
   }
   q.addEntry.run(eventId, interaction.user.id, Date.now());
-  await refreshMessage(ev);
-  if (ev.kind === 'drop' && countOf(eventId) >= ev.winner_count) {
-    // Lock it synchronously in the DB before the async message edit to prevent race entries.
-    const current = q.getEvent.get(eventId);
-    if (current?.status === 'active') {
-      const winners = q.entrants.all(eventId).slice(0, current.winner_count).map(x => x.user_id);
-      q.endEvent.run(JSON.stringify(winners), eventId);
-      await announceEnd(current, winners);
-    }
-  }
-  return interaction.reply({ content: ev.kind === 'drop' ? 'Claim ثبت شد!' : 'با موفقیت وارد گیواوی شدی! 💖', ephemeral: true });
+  const completedDrop = ev.kind === 'drop' ? finishDropIfFull(ev) : null;
+  await interaction.reply({ content: ev.kind === 'drop' ? 'Claim ثبت شد!' : 'با موفقیت وارد گیواوی شدی! 💖', ephemeral: true });
+  if (completedDrop) await announceEnd(completedDrop.event, completedDrop.winners);
+  else await refreshMessage(ev);
 }
 async function showHelp(interaction) {
   const embed = new EmbedBuilder()
@@ -301,25 +296,21 @@ client.on('messageCreate', async message => {
     // The exact phrase is matched after trimming outer whitespace; comparison is case-sensitive.
     for (const ev of events) {
       if (message.content.trim() !== ev.entry_text) continue;
-      if (ev.kind === 'giveaway' && Date.now() >= ev.ends_at) {
-        await finishGiveaway(ev);
+      const current = q.getEvent.get(ev.message_id);
+      if (!current || current.status !== 'active') continue;
+      if (current.kind === 'giveaway' && Date.now() >= current.ends_at) {
+        await finishGiveaway(current);
         continue;
       }
-      if (q.hasEntry.get(ev.message_id, message.author.id)) {
+      if (q.hasEntry.get(current.message_id, message.author.id)) {
         // Avoid spamming public channels; user already entered.
         continue;
       }
-      q.addEntry.run(ev.message_id, message.author.id, Date.now());
-      await refreshMessage(ev);
+      q.addEntry.run(current.message_id, message.author.id, Date.now());
+      const completedDrop = current.kind === 'drop' ? finishDropIfFull(current) : null;
+      if (completedDrop) await announceEnd(completedDrop.event, completedDrop.winners);
+      else await refreshMessage(current);
       await message.reply({ content: `✅ <@${message.author.id}> ثبت شد!`, allowedMentions: { users: [message.author.id] } }).catch(() => {});
-      if (ev.kind === 'drop' && countOf(ev.message_id) >= ev.winner_count) {
-        const current = q.getEvent.get(ev.message_id);
-        if (current?.status === 'active') {
-          const winners = q.entrants.all(ev.message_id).slice(0, current.winner_count).map(x => x.user_id);
-          q.endEvent.run(JSON.stringify(winners), ev.message_id);
-          await announceEnd(current, winners);
-        }
-      }
     }
   } catch (err) {
     console.error('Text-entry error:', err);
