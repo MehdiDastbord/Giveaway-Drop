@@ -231,7 +231,7 @@ async function handleEntry(interaction, eventId, action = 'join') {
     content: 'این رویداد در دیتابیس فعلی پیدا نشد. اگر بات پس از ساخت رویداد ری‌استارت یا دیپلوی شده، DATABASE_PATH را به فایل دیتابیس پایدار قبلی تنظیم کن؛ در غیر این صورت رویداد را دوباره بساز.',
     ephemeral: true
   });
-    if (ev.guild_id !== interaction.guildId || ev.channel_id !== interaction.channelId ||
+  if (ev.guild_id !== interaction.guildId || (action !== 'leave' && ev.channel_id !== interaction.channelId) ||
       (interaction.isButton() && action === 'join' && interaction.message.id !== ev.message_id)) {
     return interaction.reply({ content: 'این دکمه متعلق به همین پیام و کانال نیست.', ephemeral: true });
   }
@@ -244,7 +244,7 @@ async function handleEntry(interaction, eventId, action = 'join') {
     if (!exists) return interaction.reply({ content: 'شما قبلاً وارد این رویداد نشده‌اید.', ephemeral: true });
     q.removeEntry.run(eventId, interaction.user.id);
     await refreshMessage(ev);
-    return interaction.reply({ content: 'از رویداد خارج شدی.', ephemeral: true });
+    return interaction.reply({ content: `از رویداد خارج شدی. تعداد شرکت‌کننده‌ها: ${countOf(eventId)}`, ephemeral: true });
   }
   if (exists) {
     const row = new ActionRowBuilder().addComponents(
