@@ -1,0 +1,17 @@
+{
+  "name": "mehdi-giveaway-bot",
+  "version": "1.0.0",
+  "description": "Persistent Discord giveaway and drop bot by Mehdi (itskingpubgyt)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "register": "node src/register-commands.js"
+  },
+  "engines": { "node": ">=20.0.0" },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "discord.js": "^14.19.3",
+    "dotenv": "^16.4.7",
+    "ms": "^2.1.3"
+  }
+}
