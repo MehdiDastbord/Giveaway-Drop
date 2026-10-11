@@ -12,6 +12,7 @@ Discord giveaway + first-come drop bot using discord.js v14 and SQLite.
 - Joining twice gives an ephemeral private response with a **Leave** button.
 - Joining/leaving is acknowledged ephemerally.
 - At/after the deadline, join actions are rejected in code even if Discord has not yet visually updated the button.
+- Ended events have their entry controls and sponsor link removed from the message.
 - Winners are selected randomly, announced with mentions, and can be rerolled using `/reroll`.
 - `/help` displays private usage instructions.
 - SQLite persistence for entries and active giveaways across process restarts (use persistent storage on Railway).
@@ -47,8 +48,8 @@ The bot enforces the end timestamp when processing every join/leave interaction,
 Use values like `30s`, `10m`, `2h`, `1d`, or `1w`. Maximum giveaway duration is 30 days.
 
 ## Notes
-- A sponsor URL must be a valid `https://` or `http://` URL.
-- The `entry_text` phrase is matched exactly (after trimming outer whitespace; case-sensitive). The condition is descriptive text only. The bot does not automatically verify whether someone joined a sponsor server; Discord does not expose reliable membership verification for arbitrary servers unless the bot has the necessary access and configuration. Winners are announced with the configured instruction.
+- A sponsor URL must be a valid `https://` or `http://` URL. It is an invite link, not an eligibility check: the bot does not automatically verify sponsor-server membership. The link is removed from the giveaway message when the event ends, but users may still have copied it or opened it earlier.
+- The `entry_text` phrase is matched exactly (after trimming outer whitespace; case-sensitive). The condition is descriptive text only. Winners are announced with the configured instruction.
 - Do not publish your bot token or commit `.env`.
 
 

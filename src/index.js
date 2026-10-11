@@ -133,7 +133,7 @@ async function refreshMessage(ev, ended = false, winners = []) {
   const count = countOf(ev.message_id);
   await found.message.edit({
     embeds: [makeEmbed(ev, count, ended, winners)],
-    components: components(ev, count, ended)
+    components: components(ev, count, ended, !ended)
   }).catch(err => console.error('Could not update giveaway message:', err.message));
 }
 function sampleUnique(arr, n) {
@@ -212,7 +212,7 @@ async function createEvent(interaction, kind) {
   const initialEmbed = makeEmbed(ev, 0);
   const message = await interaction.channel.send({
     embeds: [initialEmbed],
-    components: components(ev, 0, false),
+    components: [],
     allowedMentions: { parse: [] }
   });
   ev.message_id = message.id;
@@ -227,7 +227,14 @@ async function createEvent(interaction, kind) {
 }
 async function handleEntry(interaction, eventId, action = 'join') {
   const ev = q.getEvent.get(eventId);
-  if (!ev) return interaction.reply({ content: 'این گیواوی/دراپ در دیتابیس پیدا نشد.', ephemeral: true });
+  if (!ev) return interaction.reply({
+    content: 'این رویداد در دیتابیس فعلی پیدا نشد. اگر بات پس از ساخت رویداد ری‌استارت یا دیپلوی شده، DATABASE_PATH را به فایل دیتابیس پایدار قبلی تنظیم کن؛ در غیر این صورت رویداد را دوباره بساز.',
+    ephemeral: true
+  });
+  if (ev.guild_id !== interaction.guildId || ev.channel_id !== interaction.channelId ||
+      (interaction.isButton() && interaction.message.id !== ev.message_id)) {
+    return interaction.reply({ content: 'این دکمه متعلق به همین پیام و کانال نیست.', ephemeral: true });
+  }
   if (ev.status !== 'active' || (ev.kind === 'giveaway' && Date.now() >= ev.ends_at)) {
     if (ev.status === 'active' && ev.kind === 'giveaway') await finishGiveaway(ev);
     return interaction.reply({ content: 'این رویداد تمام شده و ورود جدید پذیرفته نمی‌شود.', ephemeral: true });
@@ -334,6 +341,9 @@ client.on('interactionCreate', async interaction => {
         const id = interaction.options.getString('message_id', true);
         const ev = q.getEvent.get(id);
         if (!ev || ev.mode !== 'text') return interaction.reply({ content: 'رویداد پیدا نشد یا روی حالت text نیست.', ephemeral: true });
+        if (ev.guild_id !== interaction.guildId || ev.channel_id !== interaction.channelId) {
+          return interaction.reply({ content: 'برای ورود، دستور را در همان سرور و کانال پیام رویداد اجرا کن.', ephemeral: true });
+        }
         return handleEntry(interaction, id, name === 'leave' ? 'leave' : 'join');
       }
       if (name === 'reroll') {
