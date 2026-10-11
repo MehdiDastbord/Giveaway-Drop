@@ -377,7 +377,7 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   console.log(`Logged in as ${client.user.tag}`);
   // Register commands globally so this bot can be used in every server it is invited to.
   try {

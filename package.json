@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "register": "node src/register-commands.js"
+    "register": "node src/register-commands.js",
+    "deploy": "npm run register"
   },
   "engines": { "node": ">=20.0.0" },
   "dependencies": {
